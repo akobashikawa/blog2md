@@ -80,25 +80,25 @@ function wordpressImport(backupXmlFile, outputDir){
     fs.readFile(backupXmlFile, function(err, data) {
         parser.parseString(data, function (err, result) {
             if (err) {
-                console.log(`Error parsing xml file (${backupXmlFile})\n${JSON.stringify(err)}`); 
+                console.log(`Error parsing xml file (${backupXmlFile})\n${JSON.stringify(err)}`);
                 return 1;
             }
-            // console.dir(result); 
+            // console.dir(result);
             // console.log(JSON.stringify(result)); return;
             var posts = [];
-            
+
             // try {
                 posts = result.rss.channel[0].item;
-                
+
                 console.log(`Total Post count: ${posts.length}`);
 
                 posts = posts.filter(function(post){
                     var status = '';
                     if(post["wp:status"]){
-                        status = post["wp:status"].join(''); 
+                        status = post["wp:status"].join('');
                     }
                     // console.log(post["wp:status"].join(''));
-                    return status != "private" && status != "inherit" 
+                    return status != "private" && status != "inherit"
                 });
 
 
@@ -116,12 +116,12 @@ function wordpressImport(backupXmlFile, outputDir){
                 var fileContent = '';
                 var fileHeader = '';
                 var postMaps = {};
-                
+
                 posts.forEach(function(post){
                     var postMap = {};
 
                     title = post.title[0].trim();
-                    
+
                     // console.log(title);
 
                     // if (title && title.indexOf("'")!=-1){
@@ -140,11 +140,11 @@ function wordpressImport(backupXmlFile, outputDir){
 
                     console.log(`\n\n\n\ntitle: '${title}'`);
                     console.log(`published: '${published}'`);
-                    
+
                     if (comments){
-                        console.log(`comments: '${comments.length}'`);    
+                        console.log(`comments: '${comments.length}'`);
                     }
-                    
+
                     tags = [];
 
                     var categories = post.category;
@@ -168,7 +168,7 @@ function wordpressImport(backupXmlFile, outputDir){
                     fname = outputDir+'/'+fname+'.md';
                     pmap.postName = fname;
                     console.log(`fname: '${fname}'`);
-                    
+
                     if (post["content:encoded"]){
                         // console.log('content available');
                         var postContent = post["content:encoded"].toString();
@@ -184,7 +184,7 @@ function wordpressImport(backupXmlFile, outputDir){
                         pmap.header = `${fileHeader}\n`;
 
                         writeToFile(fname, fileContent);
-                        
+
                     }
 
                     //comments:
@@ -241,7 +241,7 @@ function wordpressImport(backupXmlFile, outputDir){
 
 
 
- 
+
 function bloggerImport(backupXmlFile, outputDir){
     var parser = new xml2js.Parser();
     // __dirname + '/foo.xml'
@@ -250,7 +250,9 @@ function bloggerImport(backupXmlFile, outputDir){
             if (err){
                 console.log(`Error parsing xml file (${backupXmlFile})\n${JSON.stringify(err)}`); return 1;
             }
-            // console.dir(JSON.stringify(result)); return;
+
+            // const sjson = JSON.stringify(result);
+            // fs.writeFileSync('test.json', sjson); console.dir(sjson); return;
 
             if(result.feed && result.feed.entry) {
                 var contents = result.feed.entry;
@@ -273,11 +275,12 @@ function bloggerImport(backupXmlFile, outputDir){
                  var markdown = '';
                  var fileContent = '';
                  var fileHeader = '';
+                 var commentsFileHeader = '';
                  var postMaps = {};
 
                 posts.forEach(function(entry){
                     var postMap = {};
-                    
+
                     var title = entry.title[0]['_'];
                     // title = tds.turndown(title);
                     if (title && title.indexOf("'")!=-1){
@@ -291,7 +294,7 @@ function bloggerImport(backupXmlFile, outputDir){
                     console.log(`title: "${title}"`);
                     console.log(`date: ${published}`);
                     console.log(`draft: false`);
-                    
+
                     var links = entry.link;
 
                     var urlLink = entry.link.filter(function(link){
@@ -303,6 +306,7 @@ function bloggerImport(backupXmlFile, outputDir){
                     // console.dir(urlLink[0]);
                     if (urlLink && urlLink[0] && urlLink[0]['$'] && urlLink[0]['$'].href){
                         url = urlLink[0]['$'].href;
+                        postMap.url = url;
                         var fname = outputDir + '/' + path.basename(url);
                         fname = fname.replace('.html', '.md')
                         console.log(fname);
@@ -316,14 +320,14 @@ function bloggerImport(backupXmlFile, outputDir){
                             content = entry.content[0]['_'];
                             markdown = tds.turndown(content);
                             // console.log(markdown);
+                            markdown += `\n\n_*Url archivado: [${title}](${url})*_\n`;
 
-                            
                         }
 
                         var tagLabel = [];
                         var tags = [];
 
-                        
+
                         tagLabel = entry.category.filter(function (tag){
                             // console.log(`tagged against :${tag['$'].term}`);
                             return tag['$'].term && tag['$'].term.indexOf('http://schemas.google')==-1;
@@ -333,36 +337,50 @@ function bloggerImport(backupXmlFile, outputDir){
                             // console.log(`tagged against :${tag['$'].term}`);
                             tags.push(tag['$'].term);
                         });
-                        
+
+                        tags.push('blogger');
 
                         console.log(`tags: \n${tags.map(a=> '- '+a).join('\n')}\n`);
 
                         var tagString='';
+                        var commentsTagString='';
 
                         if(tags.length){
                             tagString=`tags: \n${tags.map(a=> '- '+a).join('\n')}\n`;
+                            commentsTagString=`tags: \n${tags.map(a=> '- '+a).join('\n')}\ncategories:\n- comentario\n`;
                         }
 
                         console.dir(postMap);
 
                         console.log("\n\n\n\n\n");
 
-                        var alias = url.replace(/^.*\/\/[^\/]+/, '');
+                        var alias = url.replace(/^.*\/\/[^\/]+/, '').replace(/.html$/, '');
 
                         fileHeader = `---\ntitle: '${title}'\ndate: ${published}\ndraft: false\nurl: ${alias}\n${tagString}---\n`;
+
+                        if (comments.length) {
+                            commentsFileHeader = `---\ntitle: '${title} - Comments'\ndate: ${published}\ndraft: false\nurl: ${alias}-comments\n${commentsTagString}---\n`;
+                            if (mergeComments !== "m") {
+                                let linkToComments = alias + "-comments";
+                                markdown += `\n\n[[${linkToComments}]]`;
+                            }
+                        }
+
                         fileContent = `${fileHeader}\n${markdown}`;
 
                         postMap.header = fileHeader;
+                        postMap.commentsHeader = commentsFileHeader;
                         postMaps[postMap.pid] = postMap;
 
                         writeToFile(fname, fileContent)
 
                     }
-                    
+
                 });
 
 
             comments.forEach(function(entry){
+                // console.log(entry);
                 // var commentMap = {};
                 var comment = {published:'', title:'', content:''};
 
@@ -372,33 +390,35 @@ function bloggerImport(backupXmlFile, outputDir){
                 comment.published = entry['published'][0];
 
                 if(entry['title'][0] && entry['title'][0]["_"]){
-                    comment.title = tds.turndown(entry['title'][0]["_"]);    
+                    comment.title = tds.turndown(entry['title'][0]["_"]);
                 }
 
                 if (entry['content'][0] && entry['content'][0]["_"]){
-                    comment.content = tds.turndown(entry['content'][0]["_"]);    
+                    comment.content = tds.turndown(entry['content'][0]["_"]);
                 }
-                
+
                 comment.author = {name: '', email: '', url: ''};
-                
+
                 if(entry['author'][0]["name"] && entry['author'][0]["name"][0]){
-                    comment.author.name = entry['author'][0]["name"][0];    
+                    comment.author.name = entry['author'][0]["name"][0];
                 }
-                
+
                 if (entry['author'][0]["email"] && entry['author'][0]["email"][0]){
-                    comment.author.email = entry['author'][0]["email"][0];    
+                    comment.author.email = entry['author'][0]["email"][0];
                 }
-                
+
                 if (entry['author'][0]["uri"] && entry['author'][0]["uri"][0]){
-                    comment.author.url = entry['author'][0]["uri"][0];    
+                    comment.author.url = entry['author'][0]["uri"][0];
+                } else {
+                    comment.author.url = '#';
                 }
-                
+
                 postMaps[postId].comments.push(comment);
             });
 
             // console.log(JSON.stringify(postMaps)); return;
             writeComments(postMaps);
-           
+
             }
             console.log('Done');
         });
@@ -422,17 +442,21 @@ function writeComments(postMaps){
         if (comments.length){
             var ccontent = '';
             comments.forEach(function(comment){
-                var readableDate = '<time datetime="'+comment.published+'">' + moment(comment.published).format("MMM d, YYYY") + '</time>';
+                var readableDate = '[' + moment(comment.published).format("YYYY-MM-DD HH:mm") + ']';
 
-                ccontent += `#### ${comment.title}\n[${comment.author.name}](${comment.author.url} "${comment.author.email}") - ${readableDate}\n\n${comment.content}\n<hr />\n`;
+                ccontent += `\n>
+> ${comment.content}
+> \\
+> [${comment.author.name}](${comment.author.url} "${comment.author.email}") ${readableDate}
+`;
             });
 
             if (mergeComments == 'm'){
-                writeToFile(postMaps[pmap].postName, `\n---\n### Comments:\n${ccontent}`, true);
+                writeToFile(postMaps[pmap].postName, `\n---\n### Comentarios archivados:\n${ccontent}`, true);
             }else{
-                writeToFile(postMaps[pmap].fname, `${postMaps[pmap].header}\n${ccontent}`);
+                writeToFile(postMaps[pmap].fname, `${postMaps[pmap].commentsHeader}\n${ccontent}`);
             }
-            
+
         }
     }
 }
@@ -463,5 +487,5 @@ function writeToFile(filename, content, append=false){
             console.dir(err);
         }
     }
-    
+
 }
