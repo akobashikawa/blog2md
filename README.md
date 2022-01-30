@@ -60,3 +60,14 @@ Script to convert posts from Blogger to Markdown.
 * I want to retain comments. Believe it or not, There were some **good** comments.
 * Was sick and spent around ~12 hrs over 5 days in coding and testing with my blog contents over ~150 posts. And also, I find parsing _oddly satisfying_ when it result in success. `¯\_(ツ)_/¯`
 
+## AKC Customizations
+
+- Custom front matter
+    - url: delete '.html'
+    - tags: add 'blogger'
+- Custom comments
+    - Enhance presentation
+    - Fix author's uri to prevent hugo parsing error
+- Custom content
+    - Add link to blogger source
+
